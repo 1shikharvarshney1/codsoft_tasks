@@ -22,9 +22,30 @@ const app = express();
 
 // Express middleware
 app.use(express.json());
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.CLIENT_URL,
+]
+  .filter(Boolean)
+  .map((url) => url.trim().replace(/\/$/, ''));
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      const cleanOrigin = origin.replace(/\/$/, '');
+      const isExplicitlyAllowed = allowedOrigins.includes(cleanOrigin);
+      const isVercelDomain = cleanOrigin.endsWith('.vercel.app');
+
+      if (isExplicitlyAllowed || isVercelDomain) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
   })
 );
